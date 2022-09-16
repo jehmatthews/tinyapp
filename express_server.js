@@ -42,15 +42,22 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
-  console.log(req.body); // Log the POST request body to the console
-  res.send(generateRandomString(6)); // Respond with 'Ok' (we will replace this)
+  req.body.id = generateRandomString();
+  const {id, longURL} = req.body;
+  urlDatabase[id] = longURL;
+  res.redirect(`/urls/${req.body.id}`)
 });
 
-function generateRandomString(length) {
+app.get("/u/:id", (req, res) => {
+  const longURL = urlDatabase[req.params.id];
+  res.redirect(longURL);
+});
+
+function generateRandomString() {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890';
   let result = ' ';
   const charactersLength = characters.length;
-  for ( let i = 0; i < length; i++ ) {
+  for ( let i = 0; i < 6; i++ ) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength));
   }
   return result;
