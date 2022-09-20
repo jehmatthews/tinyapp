@@ -14,6 +14,39 @@ const urlDatabase = {
   '9sm5xK': 'http://www.google.com'
 };
 
+function generateRandomString() {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890';
+  let result = ' ';
+  const charactersLength = characters.length;
+  for ( let i = 0; i < 6; i++ ) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+};
+
+const users = {
+  userRandomID: {
+    id: 'userRandomID',
+    email: 'user@example.com',
+    password: 'password'
+  }, 
+  user2RandomID: {
+    id: 'user2RandomID',
+    email: 'user2@example.com',
+    password: 'password'
+  }
+};
+
+const findUser = (email) => {
+  for (let item in users) {
+    const user = users[item];
+    if (user.email === email) {
+      return user;
+    }
+  }
+  return null;
+};
+
 app.get('/', (req, res) => {
   res.send('Hello!');
 });
@@ -33,16 +66,40 @@ app.get('/hello', (req, res) => {
 app.get('/urls', (req, res) => {
   const templateVars = { 
     urls: urlDatabase,
-    username: req.cookies["username"]
+    user: req.cookies['user']
   };
   res.render('urls_index', templateVars);
 });
 
 app.get('/urls/new', (req, res) => {
   const templateVars = { 
-    username: req.cookies["username"]
+    user: req.cookies['user']
   };
   res.render('urls_new', templateVars);
+  res.redirect('/urls');
+});
+
+app.post('/register', (req, res) => {
+  if (findUser(req.body.email, 'email')) {
+    res.status(403).send('Email already used')
+  };
+
+  const cookieID = req.cookies['user_id'];
+  const key = generateRandomString();
+  users[key] = {
+    id: key,
+    email: req.body.email,
+    password: req.body.password,
+  };
+
+  if (req.body.email === '') {
+    res.status(403).send('Eror 404: No email submitted')
+  };
+  if (req.body.password === '') {
+    res.status(403).send('Eror 404: No password submitted')
+  };
+  res.cookie('user_id', key);
+  console.log(users);
   res.redirect('/urls');
 });
 
@@ -50,7 +107,7 @@ app.get('/urls/:id', (req, res) => {
   const templateVars = {
     id: req.params.id, 
     longURL: urlDatabase[req.params.id], 
-    username: req.cookies['username']
+    user: req.cookies['user']
   };
   res.render('urls_show', templateVars);
 });
@@ -78,21 +135,11 @@ app.post('/urls/:id/edit', (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  res.cookie('username', req.body.username);
+  res.cookie('user', req.body.user);
   res.redirect('/urls');
 });
 
 app.post('/logout', (req, res) => {
-  res.clearCookie('username');
+  res.clearCookie('user');
   res.redirect('/urls');
 });
-
-function generateRandomString() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890';
-  let result = ' ';
-  const charactersLength = characters.length;
-  for ( let i = 0; i < 6; i++ ) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
