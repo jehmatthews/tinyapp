@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const PORT = 8080;
 const cookieParser = require('cookie-parser');
+const bcrypt = require("bcryptjs");
 
 app.use(cookieParser());
 
@@ -158,7 +159,7 @@ app.post('/register', (req, res) => {
     users[key] = {
       id: key,
       email: req.body.email,
-      password: req.body.password,
+      hashedPassword: bcrypt.hashSync(req.body.password, 10),
     }
   };
 
@@ -173,7 +174,7 @@ app.post('/login', (req, res) => {
 
   if (check === undefined) {
     return res.status(403).send('Email not registered');
-  } else if (check.email === req.body.email && password === req.body.password) {
+  } else if (check.email === req.body.email && bcrypt.compareSync(password, check.hashedPassword)) {
     res.redirect("urls");
   } else if (check.email !== req.body.email) {
     res.status(403).send("Incorrect email, please register");
@@ -186,11 +187,20 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/urls', (req, res) => {
-  req.body.id = generateRandomString();
-  const {id, longURL} = req.body;
-  urlDatabase[id] = longURL;
-  res.redirect(`/urls/${req.body.id}`);
-  return;
+  const cookieID = req.cookies['user'];
+  const user = users[cookieID];
+  const key = generateRandomString();
+  
+  if (!user) {
+    res.send("<html><body>Permission denied<body><html>");
+  } else {
+    urlDatabase[key] = {
+      key: key,
+      longUrl: req.body.longURL,
+      userID: cookieID
+    };
+    res.redirect(`/urls/${key}`)
+  }
 });
 
 app.post('/urls/:id/delete', (req, res) => {
