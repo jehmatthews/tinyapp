@@ -1,10 +1,13 @@
 const express = require("express");
 const app = express();
 const PORT = 8080;
-const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
 const bcrypt = require("bcryptjs");
 
-app.use(cookieParser());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key1']
+}));
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -48,7 +51,11 @@ const urlsForUser = (id) => {
 };
 
 app.get('/', (req, res) => {
-  res.send('Hello!');
+  if (!req.session.user_id){
+    res.redirect("/login");
+  } else {
+    res.redirect("/urls")
+  }
 });
 
 app.listen(PORT, () => {
@@ -65,10 +72,10 @@ app.get('/hello', (req, res) => {
 
 app.get('/urls', (req, res) => {
   const templateVars = { 
-    urls: urlsForUser(req.cookies.user),
-    user: users[req.cookies.user]
+    urls: urlsForUser(req.session.user_id),
+    user: users[req.session.user_id]
   };
-  if (!req.cookies.user) {
+  if (!req.session.user_id) {
     return res.status(403).send('Login to see URLs');
   } else {
   res.render('urls_index', templateVars);
@@ -76,7 +83,7 @@ app.get('/urls', (req, res) => {
 });
 
 app.get('/urls/new', (req, res) => {
-  const cookieID = req.cookies['user'];
+  const cookieID = req.session.user_id;
   const user = users[cookieID];
   templateVars = {
     user: user
@@ -92,10 +99,10 @@ app.get('/urls/:id', (req, res) => {
   const templateVars = {
     id: req.params.id, 
     longURL: urlDatabase[req.params.id], 
-    user: users[req.cookies.user]
+    user: users[req.session.user_id]
   };
 
-  if (!req.cookies.user){
+  if (!req.session.user_id){
     return res.status(403).send("Login in to see URL");
   } else {
     res.render("urls_show", templateVars);
@@ -103,7 +110,7 @@ app.get('/urls/:id', (req, res) => {
 });
 
 app.get('/u/:id', (req, res) => {
-  const cookieID = req.cookies['user'];
+  const cookieID = req.session.user_id;
   const user = users[cookieID];
   const longURL = urlDatabase[req.params.id];
   if (!user) {
@@ -118,7 +125,7 @@ app.get('/u/:id', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-  const cookieID = req.cookies['user'];
+  const cookieID = req.session.user_id;
   const user = users[cookieID];
   templateVars = {
     urls: urlDatabase,
@@ -132,7 +139,7 @@ app.get('/register', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-  const cookieID = req.cookies['user'];
+  const cookieID = req.session.user_id;
   const user = users[cookieID];
 
   templateVars = {
@@ -163,7 +170,7 @@ app.post('/register', (req, res) => {
     }
   };
 
-  res.cookie('user', users[key].id);
+  req.session.user_id = key;
   res.redirect('/urls');
   return;
 });
@@ -187,7 +194,7 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/urls', (req, res) => {
-  const cookieID = req.cookies['user'];
+  const cookieID = req.session.user_id;
   const user = users[cookieID];
   const key = generateRandomString();
   
