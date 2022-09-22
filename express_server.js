@@ -36,6 +36,16 @@ const findUser = (email) => {
   }
 };
 
+const urlsForUser = (id) => {
+  let urls = {};
+  for (let key in urlDatabase) {
+    if (urlDatabase[key].userID === id) {
+      urls[key] = urlDatabase[key].longURL
+    }
+  }
+  return urls;
+};
+
 app.get('/', (req, res) => {
   res.send('Hello!');
 });
@@ -61,9 +71,15 @@ app.get('/urls', (req, res) => {
 });
 
 app.get('/urls/new', (req, res) => {
-  const templateVars = { 
-    user: users[req.cookies.user]
+  const cookieID = req.cookies['user'];
+  const user = users[cookieID];
+  templateVars = {
+    user: user
   };
+
+  if (!user) {
+    res.redirect('/login')
+  }
   res.render('urls_new', templateVars);
 });
 
@@ -77,8 +93,17 @@ app.get('/urls/:id', (req, res) => {
 });
 
 app.get('/u/:id', (req, res) => {
+  const cookieID = req.cookies['user'];
+  const user = users[cookieID];
   const longURL = urlDatabase[req.params.id];
-  res.redirect(longURL);
+  if (!user) {
+    res.send("<html><body>No login</body><html>");
+  };
+  if (!urlDatabase[req.params.id]) {
+    res.send("<html><body>Cannot find ID<body><html>")
+  } else {
+    res.redirect(longURL)
+  };
   return;
 });
 
@@ -114,16 +139,18 @@ app.get('/login', (req, res) => {
 
 app.post('/register', (req, res) => {
   const key = generateRandomString();
+  const check = findUser(req.body.email);
 
-  if (findUser(req.body.email, 'email')) {
-    res.status(403).send('Email already used')
-    return;
-  };
-
-  users[key] = {
-    id: key,
-    email: req.body.email,
-    password: req.body.password,
+  if(req.body.email === "" || req.body.password === ""){
+    return res.status(400).send("Empty fields");
+  } else if ( check !== undefined) {
+    return res.status(400).send("Email already registered");
+  } else if (check === undefined) {
+    users[key] = {
+      id: key,
+      email: req.body.email,
+      password: req.body.password,
+    }
   };
 
   res.cookie('user', users[key].id);
@@ -132,31 +159,19 @@ app.post('/register', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const email = req.body.email;
+  const check = findUser(req.body.email);
   const password = req.body.password;
-  const key = generateRandomString();
 
-  users[key] = {
-    id: key,
-    email: req.body.email,
-    password: req.body.password,
+  if (check === undefined) {
+    return res.status(403).send('Email not registered');
+  } else if (check.email === req.body.email && password === req.body.password) {
+    res.redirect("urls");
+  } else if (check.email !== req.body.email) {
+    res.status(403).send("Incorrect email, please register");
+  } else if (check.password !== req.body.password) {
+    res.status(403).send("Incorrect password")
   };
-
-  if (!email || !password) {
-    return res.status(403).send('Email and/or password missing');
-  };
-
-  const user = findUser(email);
-
-  if (!user) {
-    return res.status(400).send('That user does not exist');
-  };
-
-  if (user.password !== password) {
-    return res.status(400).send('Password is incorrect');
-  };
-
-  res.cookie('user', users[key].id);
+  
   res.redirect('/urls');
   return;
 });
