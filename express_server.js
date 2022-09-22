@@ -64,10 +64,14 @@ app.get('/hello', (req, res) => {
 
 app.get('/urls', (req, res) => {
   const templateVars = { 
-    urls: urlDatabase,
+    urls: urlsForUser(req.cookies.user),
     user: users[req.cookies.user]
   };
+  if (!req.cookies.user) {
+    return res.status(403).send('Login to see URLs');
+  } else {
   res.render('urls_index', templateVars);
+  };
 });
 
 app.get('/urls/new', (req, res) => {
@@ -89,7 +93,12 @@ app.get('/urls/:id', (req, res) => {
     longURL: urlDatabase[req.params.id], 
     user: users[req.cookies.user]
   };
-  res.render('urls_show', templateVars);
+
+  if (!req.cookies.user){
+    return res.status(403).send("Login in to see URL");
+  } else {
+    res.render("urls_show", templateVars);
+  }
 });
 
 app.get('/u/:id', (req, res) => {
