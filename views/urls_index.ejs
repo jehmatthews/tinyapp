@@ -29,6 +29,9 @@
               <th scope="col">Delete</th>
             </tr>
           </thead>
+          <%if (!user) { %>
+            <tbody>Must be logged in to shorten URL's</tbody>
+          <% } else { %>
           <tbody>
             <% for (let id in urls) { %>
               <tr>
@@ -38,6 +41,7 @@
                 <td><form method="POST" action="/urls/<%= id %>/delete"><button>Delete</button></form></td>
               </tr>
             <% } %>
+          <% } %>
           </tbody>
         </table>
       </main>
