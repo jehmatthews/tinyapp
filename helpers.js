@@ -8,4 +8,14 @@ const findUser = (email, key, users) => { // finds user by their email
   return undefined;
 };
 
-module.exports = findUser;
+function generateRandomString() { // function that gives a 6 char id to cookie and short URLs
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890';
+  let result = '';
+  const charactersLength = characters.length;
+  for ( let i = 0; i < 6; i++ ) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+};
+
+module.exports = { findUser, generateRandomString };
