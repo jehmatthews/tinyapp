@@ -33,10 +33,10 @@
           <tbody>Must be logged in to shorten URL's</tbody>
         <% } else { %>
         <tbody>
-          <% for (let id in url) { %>
+          <% for (let id in urls) { %>
             <tr>
               <td><%= id %></td>
-              <td><%= url[id].longURL%></td>
+              <td><%= urls[id].longUrl%></td>
               <td>
                 <form method="GET" action="/urls/<%= id %>">
                   <button type="submit">Edit</button>
