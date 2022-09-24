@@ -1,9 +1,11 @@
 const express = require("express");
-const app = express();
-const PORT = 8080;
 const cookieSession = require('cookie-session');
 const bcrypt = require("bcryptjs");
-const findUser = require('./helpers');
+
+const app = express();
+const PORT = 8080;
+
+const { findUser, generateRandomString } = require('./helpers');
 
 app.use(cookieSession({ 
   name: 'session', // where cookies are encrypted
@@ -16,36 +18,38 @@ app.set('view engine', 'ejs');
 
 // for URLs created
 const urlDatabase = {
-
+  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
+  i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
 };
 
 // for Users created
-const users = {
-
-};
-
-function generateRandomString() { // function that gives a 6 char id to cookie and short URLs
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890';
-  let result = '';
-  const charactersLength = characters.length;
-  for ( let i = 0; i < 6; i++ ) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
+const users = {  
+    userRandomID: {
+    id: "userRandomID",
+    email: "user@example.com",
+    password: "purple-monkey-dinosaur",
+  },
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: "dishwasher-funk",
+  },
 };
 
 const urlsForUser = (id) => { // returns object based on matching of url and id
   const urls = {};
   for (const url in urlDatabase) {
     if (id === urlDatabase[url].userID) {
-      urls[urlDatabase[url].key] = urlDatabase[url];
+      urls[url] = urlDatabase[url];
     }
   }
   return urls;
 };
 
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
+// ----- Get requests -----
+// Startup Get functions
+app.get('/hello', (req, res) => {
+  res.send('<html><body>Hello <b>World</b></body></html>\n');
 });
 
 app.get('/', (req, res) => {
@@ -61,26 +65,24 @@ app.get('/', (req, res) => {
   }
 });
 
-app.get('/urls.json', (req, res) => {
-  res.json(urlDatabase);
-});
-
-app.get('/hello', (req, res) => {
-  res.send('<html><body>Hello <b>World</b></body></html>\n');
-});
-
+// Get request for URL's
 app.get('/urls', (req, res) => {
   const cookieID = req.session.user_id;
   const user = users[cookieID];
 
   templateVars = { 
-    url: urlsForUser(cookieID),
+    urls: urlsForUser(cookieID),
     user: user
   };
 
   res.render('urls_index', templateVars);
 });
 
+app.get('/urls.json', (req, res) => {
+  res.json(urlDatabase);
+});
+
+// Get request for new URL's
 app.get('/urls/new', (req, res) => {
   const cookieID = req.session.user_id;
   const user = users[cookieID];
@@ -94,13 +96,13 @@ app.get('/urls/new', (req, res) => {
   res.render('urls_new', templateVars);
 });
 
+// Get request for the edit page
 app.get('/urls/:id', (req, res) => {
   const { id } = req.params;
   const cookieID = req.session.user_id;
   const user = users[cookieID];
   const templateVars = {
-    id,
-    urls: urlDatabase,
+    url: urlDatabase[id],
     user: user
   };
 
@@ -111,10 +113,11 @@ app.get('/urls/:id', (req, res) => {
   res.render("urls_show", templateVars);
 });
 
+// Get request for redirect based on longURL
 app.get('/u/:id', (req, res) => {
   const cookieID = req.session.user_id;
   const user = users[cookieID];
-  const longURL = urlDatabase[req.params.id].longURL;
+  const longURL = urlDatabase[req.params.id].longUrl;
   if (!user) {
     res.send("<html><body>No login</body></html>");
   };
@@ -125,6 +128,7 @@ app.get('/u/:id', (req, res) => {
   };
 });
 
+// Get request for registering new user
 app.get('/register', (req, res) => {
   const cookieID = req.session.user_id;
   const user = users[cookieID];
@@ -139,6 +143,7 @@ app.get('/register', (req, res) => {
   res.render('urls_register', templateVars);
 });
 
+// Get request for login from valid user
 app.get('/login', (req, res) => {
   const cookieID = req.session.user_id;
   const user = users[cookieID];
@@ -155,6 +160,8 @@ app.get('/login', (req, res) => {
   res.render('urls_login', templateVars);
 });
 
+// ----- Post requests ----- 
+// Post when registering new user
 app.post('/register', (req, res) => {
   const key = generateRandomString();
   const hashPassword = bcrypt.hashSync(req.body.password, 10);
@@ -178,6 +185,7 @@ app.post('/register', (req, res) => {
   return;
 });
 
+// Post when logging in user
 app.post('/login', (req, res) => {
   const user = findUser(req.body.email, 'email', users);
 
@@ -193,39 +201,46 @@ app.post('/login', (req, res) => {
   return;
 });
 
+// Post when adding new URL's
 app.post('/urls', (req, res) => {
   const key = generateRandomString();
   const cookieID = req.session.user_id;
   const user = users[cookieID];
   
   if (!user) {
-    res.send("<html><body>Permission denied</body></html>");
-  } else {
-    urlDatabase[key] = {
-      key: key,
-      longUrl: req.body.longURL,
-      userID: cookieID
-    };
-    res.redirect(`/urls/${key}`);
+    return res.send("<html><body>Permission denied</body></html>");
+  }; 
+  urlDatabase[key] = {
+    id: key,
+    longUrl: req.body.longURL,
+    userID: cookieID
   };
-  return;
+
+  return res.redirect(`/urls/${key}`);
 });
 
-
+// Post when deleting user URL
 app.post('/urls/:id/delete', (req, res) => {
   delete urlDatabase[req.params.id];
   res.redirect('/urls');
   return;
 });
 
+// Post when editing user URL
 app.post('/urls/:id/edit', (req, res) => {
-  urlDatabase[req.params.id].longURL = req.body.longURL;
+  urlDatabase[req.params.id].longUrl = req.body.longUrl;
   res.redirect('/urls');
   return;
 });
 
+// Post when logging out
 app.post('/logout', (req, res) => {
   req.session.user_id = undefined;
   res.redirect('/urls');
   return;
+});
+
+// Port # listening on
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
 });
