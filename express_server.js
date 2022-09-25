@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 const app = express();
 const PORT = 8080;
 
-const { findUser, generateRandomString } = require('./helpers');
+const { urlDatabase, users, findUser, generateRandomString, urlsForUser } = require('./helpers');
 
 app.use(cookieSession({ 
   name: 'session', 
@@ -15,36 +15,6 @@ app.use(cookieSession({
 app.use(express.urlencoded({ extended: true }));
 
 app.set('view engine', 'ejs');
-
-// for URLs created
-const urlDatabase = {
-  b6UTxQ: { longURL: "https://www.tsn.ca", userID: "aJ48lW" },
-  i3BoGr: { longURL: "https://www.google.ca", userID: "aJ48lW" }
-};
-
-// for Users created
-const users = {  
-    userRandomID: {
-    id: "userRandomID",
-    email: "user@example.com",
-    password: "purple-monkey-dinosaur",
-  },
-  user2RandomID: {
-    id: "user2RandomID",
-    email: "user2@example.com",
-    password: "dishwasher-funk",
-  },
-};
-
-const urlsForUser = (id) => { // returns object based on matching of url and id
-  const urls = {};
-  for (const url in urlDatabase) {
-    if (id === urlDatabase[url].userID) {
-      urls[url] = urlDatabase[url];
-    }
-  }
-  return urls;
-};
 
 // ----- Get requests -----
 // Startup Get functions
@@ -168,7 +138,7 @@ app.post('/register', (req, res) => {
   const key = generateRandomString();
   const hashPassword = bcrypt.hashSync(req.body.password, 10);
 
-  if(req.body.email === "" || req.body.password === ""){
+  if(req.body.email === '' || req.body.password === ''){
     res.status(403).send("Empty fields");
   };
 
@@ -191,12 +161,14 @@ app.post('/register', (req, res) => {
 app.post('/login', (req, res) => {
   const user = findUser(req.body.email, 'email', users);
 
+  if (!findUser(req.body.email, 'email', users)) {
+    res.status(403).send('Email not found');
+  };
+  if (!bcrypt.compareSync(req.body.password, user.password)) {
+    res.status(403).send('Password incorrect');
+  };
   if (findUser(req.body.email, 'email', users) && bcrypt.compareSync(req.body.password, user.password)) {
     req.session.user_id = user.id;
-  } else if (!findUser(req.body.email, 'email', users)) {
-    res.status(400).send('Email not found');
-  } else if (!bcrypt.compareSync(req.body.password, user.password)) {
-    res.status(403).send('Password incorrect');
   };
   
   res.redirect('/urls');
@@ -238,7 +210,7 @@ app.post('/urls/:id/edit', (req, res) => {
 
 // Post when logging out
 app.post('/logout', (req, res) => {
-  req.session.user_id = undefined;
+  req.session = undefined;
   res.redirect('/urls');
   return;
 });
